@@ -25,6 +25,7 @@ ReactDOM.render(
 );
 
 // This should throw
+// eslint-disable-next-line
 myUndefinedFunction();
 
 // If you want to start measuring performance in your app, pass a function
