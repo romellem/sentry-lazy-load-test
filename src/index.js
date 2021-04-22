@@ -1,32 +1,43 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+import React from "react";
+import ReactDOM from "react-dom";
+import "./index.css";
+import App, { SENTRY_CAUGHT_ERROR_EVENT_TYPE } from "./App";
+import triggerCustomEvent from "./util/trigger-custom-event";
+import reportWebVitals from "./reportWebVitals";
 
-import * as Sentry from "@sentry/browser";
-import { Integrations } from "@sentry/tracing";
-
-Sentry.init({
-  dsn: process.env.REACT_APP_SENTRY_DSN,
-  integrations: [new Integrations.BrowserTracing()],
-
-  // Set tracesSampleRate to 1.0 to capture 100%
-  // of transactions for performance monitoring.
-  // We recommend adjusting this value in production
-  tracesSampleRate: 1.0,
-});
+if (process.env.NODE_ENV === "production") {
+  const captureError = async (error) => {
+    try {
+      console.error(error);
+      const Sentry = await import(
+        /* webpackChunkName: "SentryBrowser" */ "@sentry/browser"
+      );
+      Sentry.init({
+        dsn: process.env.REACT_APP_SENTRY_DSN,
+      });
+      Sentry.captureException(error);
+    } catch (e) {
+      // all fails, reset window.onerror to prevent infinite loop on window.onerror
+      console.error("Logging to Sentry failed", e);
+      window.onerror = null;
+    } finally {
+      triggerCustomEvent(document, SENTRY_CAUGHT_ERROR_EVENT_TYPE);
+    }
+  };
+  window.onerror = (message, url, line, column, error) => captureError(error);
+  window.onunhandledrejection = (event) => captureError(event.reason);
+}
 
 ReactDOM.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
-  document.getElementById('root')
+  document.getElementById("root")
 );
 
 // This should throw
 // eslint-disable-next-line
-myUndefinedFunction();
+// myUndefinedFunction();
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
